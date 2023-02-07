@@ -21,6 +21,15 @@ DHT dht(DHTPIN, DHTTYPE); //// Initialize DHT sensor for normal 16mhz Arduino
 //int chk;
 int h;  //Stores humidity value
 int t; //Stores temperature value
+int fan = 11;       // the pin where fan is 
+int tempMin = 25;   // the temperature to start the fan
+int tempMax = 28;   // the maximum temperature when fan is at 100%
+int fanSpeed;
+int fanLCD;
+
+boolean peopleOnBothSide=false;
+long int door_move_starting_time;
+int door_move_angle;
 
 // LDR
 int LDRInput=A0;
@@ -33,16 +42,18 @@ int LED=8;
 int servoPin = 9; 
 Servo Servo1;     // servo obj
 
-//IR sensor in
-int SensorPin=2;
-int inFlag=0;
+//IR sensor outside
+int irPinOUTSIDE=2;
 
-//IR sensor out
-int SensorPin2=5;
-int outFlag=0;
+//IR sensor inside
+int irPinINSIDE=5;
 
-//People Count
-int peopleCount=0;
+int count=0;
+boolean init_state=true;
+boolean wait_enter_state = false;
+boolean wait_exit_state = false;
+long int waiting_time;
+
 void setup()
 {
     Serial.begin(9600);
@@ -53,13 +64,13 @@ void setup()
     pinMode(LDRInput,INPUT);
     pinMode(LED,OUTPUT);
     Servo1.attach(servoPin);    // We need to attach the servo to the used pin number 
-    pinMode(SensorPin,INPUT);
-    pinMode(SensorPin2,INPUT);
+    pinMode(irPinOUTSIDE,INPUT);
+    pinMode(irPinINSIDE,INPUT);
+    pinMode(fan, OUTPUT);
 }
 
-void loop()
+void LEDLogic()
 {
-
   int value=analogRead(LDRInput);
   
     if(value<300)
@@ -70,25 +81,158 @@ void loop()
     {
       digitalWrite(LED,LOW);
     }
+}
+
+void doorLogic(){
+    int inputINSIDE = !digitalRead(irPinINSIDE);
+    int inputOUTSIDE = !digitalRead(irPinOUTSIDE);
+    //this function can change a state variable
+
+    if(millis()-door_move_starting_time<3000){
+        Servo1.write(door_move_angle);
+    }
+    else{
+        if(inputINSIDE && inputOUTSIDE){
+            Servo1.write(90);
+            peopleOnBothSide=true;
+        }
+        else if(!inputINSIDE && !inputOUTSIDE){
+          Servo1.write(90);
+          peopleOnBothSide=false;
+        }
+        else if(inputINSIDE && !inputOUTSIDE){
+          Servo1.write(0);
+          door_move_starting_time = millis();
+          door_move_angle=0;
+          peopleOnBothSide=false;
+        }
+        else{
+          Servo1.write(0);
+          door_move_starting_time = millis();
+          door_move_angle=0;
+          peopleOnBothSide=false;
+        }
+    }
+    
+    
+}
+
+void humanCount(){
+  int inputINSIDE = !digitalRead(irPinINSIDE);
+  int inputOUTSIDE = !digitalRead(irPinOUTSIDE);
+  delay(100);
+  if(init_state){
+      if(inputINSIDE && inputOUTSIDE){
+
+      }
+      else if(!inputINSIDE && !inputOUTSIDE){
+          
+      }
+      else if(inputINSIDE && !inputOUTSIDE){
+        init_state = false;
+        wait_exit_state=true;
+        waiting_time = millis();
+      }
+      else{
+        init_state = false;
+        wait_enter_state=true;
+        waiting_time = millis();
+      }
+  }
+  else if(wait_enter_state){
+      if(inputINSIDE && inputOUTSIDE){
+        init_state=true;
+        wait_enter_state=false;
+      }
+      else if(!inputINSIDE && !inputOUTSIDE){
+        if(millis()-waiting_time>3000){
+          init_state=true;
+          wait_enter_state=false;
+        }
+      }
+      else if(inputINSIDE && !inputOUTSIDE){
+        init_state = true;
+        wait_enter_state=false;
+        count++;
+        Serial.print("Entering : ");
+        Serial.println(count);
+      }
+      else{
+        
+      }
+  }
+  else{
+      if(inputINSIDE && inputOUTSIDE){
+        init_state=true;
+        wait_exit_state=false;
+      }
+      else if(!inputINSIDE && !inputOUTSIDE){
+        if(millis()-waiting_time>3000){
+          init_state=true;
+          wait_exit_state=false;
+        }
+      }
+      else if(inputINSIDE && !inputOUTSIDE){
+        
+      }
+      else{
+        init_state = true;
+        wait_exit_state=false;
+        if(count>0) count--;
+        Serial.print("Exiting : ");
+        Serial.println(count);
+      }
+  }
+}
+
+
+
+void fanSpeedLogic(int temp){
+  //humidity
+  //if(count){
+    if((temp >= tempMin) && (temp <= tempMax)) {  // if temperature is higher than minimum temp
+         fanSpeed = 80; // the actual speed of fan
+         analogWrite(fan, fanSpeed);  // spin the fan at the fanSpeed speed
+     } 
+    
+     if(temp < tempMin) {   // if temp is lower than minimum temp
+      fanSpeed = 0;      // fan is not spinning
+      digitalWrite(fan, LOW);       
+     } 
+     
+     if(temp > tempMax) {        // if temp is higher than tempMax
+      fanSpeed = 100;      // fan is not spinning
+      //fanLCD = 255; 
+      digitalWrite(fan, HIGH); 
+     }
+  //}
+  /*else{
+    digitalWrite(fan,LOW);
+  }*/
+}
+
+void loop()
+{
+    humanCount();
+    LEDLogic();
+    doorLogic();
       
     //Read data and store it to variables h (humidity) and t (temperature)
     // Reading temperature or humidity takes about 250 milliseconds!
     h = dht.readHumidity();
     t = dht.readTemperature();
-    
-    //Print temp and humidity values to serial monitor
-    /*Serial.print("Humidity: ");
-    Serial.print(h);
-    Serial.print(" %, Temp: ");
-    Serial.print(t);
-    Serial.println(" ° Celsius");*/
-        
-// set the cursor to (0,0):
-// print from 0 to 9:
+
+    fanSpeedLogic(t);
+    Serial.print("Init_state:");
+    Serial.print(init_state);
+    Serial.print("\nWait_exit_state:");
+    Serial.print(wait_exit_state);
+    Serial.print("\nWait_enter_state:");
+    Serial.print(wait_enter_state);
 
     lcd.setCursor(0, 0);
-    lcd.println(" Now Temperature ");
-    
+    lcd.print(" Humancount: ");
+    lcd.print(count);
     lcd.setCursor(0, 1);
     lcd.print("T:");
     lcd.print(t);
@@ -101,64 +245,4 @@ void loop()
     lcd.print("H:");
     lcd.print(h);
     lcd.print("%");
-
-// motor
-   // Make servo go to 0 degrees 
-   //Servo1.write(0); 
-   //delay(1000); 
-   // Make servo go to 90 degrees 
-   //Servo1.write(90); 
-   //delay(1000); 
-   // Make servo go to 180 degrees 
-   
-
-//IR
-  if(outFlag==0)
-  {
-     int SensorValue=digitalRead(SensorPin);
-  if(SensorValue==LOW)
-  {
-      Servo1.write(0);   //open
-      Serial.println("low");
-      inFlag=1;
-  }
-  else
- {
-      Servo1.write(120);  // close
-      Serial.println("high");
-      inFlag=0;
- }  
- delay(2000);
-  }
-
-//IR2
-if(inFlag==0)
-{
-   int SensorValue2=digitalRead(SensorPin2);
-  if(SensorValue2==LOW)
-  {
-      Servo1.write(0); //open
-      Serial.println("open");
-      outFlag=1;  
-  }
-  else
-{
-      Servo1.write(120); //close
-      Serial.println("close");
-      outFlag=0;
-}    
-  
- delay(2000);
-}
-      /*int SensorValue2=digitalRead(SensorPin2);
-  if(SensorValue2==LOW)
-  {
-      Servo1.write(120);  
-  }
-  else
-{
-      Servo1.write(0);
-}  
-delay(1000);
-*/
 }
