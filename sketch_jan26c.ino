@@ -23,9 +23,10 @@ int h;  //Stores humidity value
 int t; //Stores temperature value
 int fan = 11;       // the pin where fan is 
 int tempMin = 25;   // the temperature to start the fan
-int tempMax = 28;   // the maximum temperature when fan is at 100%
+int tempMax = 29;   // the maximum temperature when fan is at 100%
 int fanSpeed;
 int fanLCD;
+int baseSpeed=60;
 
 boolean peopleOnBothSide=false;
 long int door_move_starting_time;
@@ -71,7 +72,8 @@ void setup()
 
 void LEDLogic()
 {
-  int value=analogRead(LDRInput);
+  if(count){
+int value=analogRead(LDRInput);
   
     if(value<300)
     {
@@ -81,6 +83,9 @@ void LEDLogic()
     {
       digitalWrite(LED,LOW);
     }
+  }
+  else
+    digitalWrite(LED,LOW);
 }
 
 void doorLogic(){
@@ -88,7 +93,7 @@ void doorLogic(){
     int inputOUTSIDE = !digitalRead(irPinOUTSIDE);
     //this function can change a state variable
 
-    if(millis()-door_move_starting_time<3000){
+    if(millis() - door_move_starting_time<3000){
         Servo1.write(door_move_angle);
     }
     else{
@@ -189,9 +194,9 @@ void humanCount(){
 
 void fanSpeedLogic(int temp){
   //humidity
-  //if(count){
+  if(count){
     if((temp >= tempMin) && (temp <= tempMax)) {  // if temperature is higher than minimum temp
-         fanSpeed = 80; // the actual speed of fan
+         fanSpeed = baseSpeed+(temp-tempMin)*10; // the actual speed of fan
          analogWrite(fan, fanSpeed);  // spin the fan at the fanSpeed speed
      } 
     
@@ -201,18 +206,29 @@ void fanSpeedLogic(int temp){
      } 
      
      if(temp > tempMax) {        // if temp is higher than tempMax
-      fanSpeed = 100;      // fan is not spinning
+      fanSpeed = 100;      // fan is spinning
       //fanLCD = 255; 
       digitalWrite(fan, HIGH); 
      }
-  //}
-  /*else{
+  }
+  else{
     digitalWrite(fan,LOW);
-  }*/
+  }
 }
 
 void loop()
 {
+
+  /*int value=analogRead(LDRInput);
+  
+    if(value<300)
+    {
+      digitalWrite(LED,HIGH);
+    }
+    else
+    {
+      digitalWrite(LED,LOW);
+    }*/
     humanCount();
     LEDLogic();
     doorLogic();
@@ -223,12 +239,22 @@ void loop()
     t = dht.readTemperature();
 
     fanSpeedLogic(t);
-    Serial.print("Init_state:");
+    /*Serial.print("Init_state:");
     Serial.print(init_state);
     Serial.print("\nWait_exit_state:");
     Serial.print(wait_exit_state);
     Serial.print("\nWait_enter_state:");
-    Serial.print(wait_enter_state);
+    Serial.print(wait_enter_state);*/
+    
+    //Print temp and humidity values to serial monitor
+    /*Serial.print("Humidity: ");
+    Serial.print(h);
+    Serial.print(" %, Temp: ");
+    Serial.print(t);
+    Serial.println(" ° Celsius");*/
+        
+// set the cursor to (0,0):
+// print from 0 to 9:
 
     lcd.setCursor(0, 0);
     lcd.print(" Humancount: ");
@@ -238,8 +264,8 @@ void loop()
     lcd.print(t);
     lcd.print("C");
 
-    lcd.setCursor(6, 1);
-    lcd.println("1.3pm ");
+    /*lcd.setCursor(6, 1);
+    lcd.println("1.3pm ");*/
      
     lcd.setCursor(11, 1);
     lcd.print("H:");
