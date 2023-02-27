@@ -22,8 +22,8 @@ DHT dht(DHTPIN, DHTTYPE); //// Initialize DHT sensor for normal 16mhz Arduino
 int h;  //Stores humidity value
 int t; //Stores temperature value
 int fan = 11;       // the pin where fan is 
-int tempMin = 25;   // the temperature to start the fan
-int tempMax = 29;   // the maximum temperature when fan is at 100%
+int tempMin = 31;   // the temperature to start the fan
+int tempMax = 34;   // the maximum temperature when fan is at 100%
 int fanSpeed;
 int fanLCD;
 int baseSpeed=60;
@@ -55,6 +55,11 @@ boolean wait_enter_state = false;
 boolean wait_exit_state = false;
 long int waiting_time;
 
+char data=0;
+int bluetoothControl=0;
+boolean ledOn=false;
+boolean fanOn=false;
+
 void setup()
 {
     Serial.begin(9600);
@@ -72,7 +77,7 @@ void setup()
 
 void LEDLogic()
 {
-  if(count){
+  if(count && bluetoothControl==0){
 int value=analogRead(LDRInput);
   
     if(value<300)
@@ -194,9 +199,9 @@ void humanCount(){
 
 void fanSpeedLogic(int temp){
   //humidity
-  if(count){
+  if(count && bluetoothControl==0){
     if((temp >= tempMin) && (temp <= tempMax)) {  // if temperature is higher than minimum temp
-         fanSpeed = baseSpeed+(temp-tempMin)*10; // the actual speed of fan
+         fanSpeed = baseSpeed+(temp-tempMin)*10; 
          analogWrite(fan, fanSpeed);  // spin the fan at the fanSpeed speed
      } 
     
@@ -216,6 +221,50 @@ void fanSpeedLogic(int temp){
   }
 }
 
+void bluetoothLogic()
+{
+    if(count)
+    {
+        if(Serial.available()>0)
+        {
+            data = Serial.read();   
+            if(bluetoothControl==1)
+            {
+                  if(data == 'a')   {          
+                      digitalWrite(LED, HIGH);
+                      ledOn=true;  
+                  }
+                  else if(data == 'b') {    
+                      digitalWrite(LED, LOW); 
+                      ledOn=false;
+                  }
+
+                  if(data == 'c')   {          
+                     digitalWrite(fan, HIGH);
+                     fanSpeed=100;
+                     fanOn=true; 
+                  } 
+                  else if(data == 'd')  {   
+                      digitalWrite(fan, LOW);
+                      fanSpeed=0;
+                      fanOn=false;
+                  }
+
+            }
+            
+                  if(data == 'g') { 
+                      bluetoothControl=1; 
+                      Serial.println("g");
+                  }            
+                  else if(data == 'h')  {   
+                      bluetoothControl=0;
+                      Serial.println("h");
+                  }
+        }
+    }
+    
+}
+
 void loop()
 {
 
@@ -232,6 +281,22 @@ void loop()
     humanCount();
     LEDLogic();
     doorLogic();
+    bluetoothLogic();
+    if(bluetoothControl)
+    {
+        if(ledOn)
+          digitalWrite(LED,HIGH);
+        else
+          digitalWrite(LED,LOW);
+        if(fanOn){
+          fanSpeed=100;
+          digitalWrite(fan,HIGH);
+        }
+        else{
+          fanSpeed=0;
+          digitalWrite(fan,LOW);
+        }
+    }
       
     //Read data and store it to variables h (humidity) and t (temperature)
     // Reading temperature or humidity takes about 250 milliseconds!
@@ -257,17 +322,23 @@ void loop()
 // print from 0 to 9:
 
     lcd.setCursor(0, 0);
-    lcd.print(" Humancount: ");
+    lcd.print(" Human: ");
     lcd.print(count);
+    lcd.setCursor(10,0);
+    lcd.print("F: ");
+    if(fanSpeed==100)
+      lcd.print(fanSpeed);
+    else{
+      lcd.print(" ");
+      lcd.print(fanSpeed);
+    }
     lcd.setCursor(0, 1);
-    lcd.print("T:");
+    lcd.print(" T:");
     lcd.print(t);
     lcd.print("C");
 
-    /*lcd.setCursor(6, 1);
-    lcd.println("1.3pm ");*/
      
-    lcd.setCursor(11, 1);
+    lcd.setCursor(10, 1);
     lcd.print("H:");
     lcd.print(h);
     lcd.print("%");
