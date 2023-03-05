@@ -1,11 +1,12 @@
 # Smart_Room
 CSE 316 Microcontroller Project
 
-Team members: 1905091 - Sadia Tabassum
-1905099 - Alina Zaman
-1905102 - Md. Shafiul Haque
-1905103 - Mayesha Rashid
-1905119 - Saha Kuljit Shantanu
+Team members: 
+- 1905091 - Sadia Tabassum
+- 1905099 - Alina Zaman
+- 1905102 - Md. Shafiul Haque
+- 1905103 - Mayesha Rashid
+- 1905119 - Saha Kuljit Shantanu
 
 Motivation:
 
@@ -35,12 +36,12 @@ Description:
 - Showing the temperature, humidity, fan speed and human count in an LCD display.
 
 Supervisors:
-- Md. Tareq Mahmood
-Assistant Professor
+- Md. Tareq Mahmood, 
+Assistant Professor, 
 CSE, BUET
 
-- Md. Masum Mushfiq
-Lecturer
+- Md. Masum Mushfiq, 
+Lecturer, 
 CSE, BUET
 
 Demonstration video link - https://youtu.be/M8gkxZKchZ0
